@@ -25,7 +25,7 @@ export default function NotificationDropdown() {
   useEffect(() => {
     const fetchNotifications = async () => {
       try {
-        const res = await mockapi.get(`${MOCK_API_URL}/teknix/musicdash/api/v1/user/notifications`, {
+        const res = await mockapi.get(`${MOCK_API_URL}/teknix1/musicdashboard/api/v1/user/notifications`, {
           withCredentials: true,
         });
         console.log("Notifications API response:", res.data.data);

@@ -41,7 +41,7 @@ const CountryMap: React.FC<CountryMapProps> = ({ mapColor }) => {
     const fetchLocations = async () => {
       try {
         const res = await mockapi.get<{ data: DeviceLocation[] }>(
-          `${MOCK_API_URL}/teknix/musicdash/api/v1/devices/locations`,
+          `${MOCK_API_URL}/teknix1/musicdashboard/api/v1/devices/locations`,
           { withCredentials: true }
         );
 

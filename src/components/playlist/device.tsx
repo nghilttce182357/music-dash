@@ -81,7 +81,7 @@ export default function BasicTableOne() {
     setFetchError(null);
     try {
       const res = await mockapi.get(
-        `${MOCK_API_URL}/teknix/musicdash/api/v1/alldevices`,
+        `${MOCK_API_URL}/teknix1/musicdashboard/api/v1/alldevices`,
         { withCredentials: true }
       );
       console.log("Fetched devices:", res.data.data);

@@ -43,7 +43,7 @@ export default function DemographicCard() {
     const fetchCategories = async () => {
       try {
         const res = await mockapi.get(
-          `${MOCK_API_URL}/teknix/musicdash/api/v1/category`,
+          `${MOCK_API_URL}/teknix1/musicdashboard/api/v1/category`,
           { withCredentials: true }
         );
         console.log("Fetched categories:", res.data.data);
@@ -62,7 +62,7 @@ export default function DemographicCard() {
       setLoading(true);
       try {
         const res = await mockapi.get(
-          `${MOCK_API_URL}/teknix/musicdash/api/v1/device`,
+          `${MOCK_API_URL}/teknix1/musicdashboard/api/v1/device`,
           { withCredentials: true }
         );
         console.log("Fetched devices:", res.data.data);
