@@ -80,7 +80,7 @@ const songsData: Song[] = [
     title: "Acidrap",
     artist: "Various",
     duration: "03:22 mins",
-    cover: "/images/music/acidrap.svg",
+    cover: "/images/music/acidrap1.svg",
   },
   {
     id: 9,

@@ -28,8 +28,8 @@ export default function NotificationDropdown() {
         const res = await axios.get(`${API_ROOT}/teknix/musicdash/api/v1/user/notifications`, {
           withCredentials: true,
         });
-        console.log("Notifications API response:", res.data);
-        setNotifications(res.data || []);
+        console.log("Notifications API response:", res.data.data);
+        setNotifications(res.data.data || []);
       } catch (err: any) {
         console.error("Failed to fetch notifications:", err.message);
       }

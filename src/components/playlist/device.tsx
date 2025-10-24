@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import PaginationWithTextWitIcon from "../ui/pagination/PaginationWithTextWitIcon";
 import { AngleDownIcon, AngleUpIcon, PencilIcon } from "@/icons";
@@ -8,6 +8,18 @@ import { Table, TableBody, TableCell, TableHeader, TableRow } from "../ui/table"
 import Switch from "../form/switch/Switch";
 import EditDeviceForm from "./EditDeviceForm";
 import AddGroupForm from "./AddGroupForm";
+import { API_ROOT } from "@/utils/constants";
+import axios from "axios";
+
+type Device = {
+    id: number;
+    image: string;
+    name: string;
+    address: string;
+    group: string;
+    volume: number;
+    enabled: boolean;
+};
 
 
 
@@ -20,21 +32,12 @@ export default function BasicTableOne() {
 
     const [activeTab, setActiveTab] = React.useState<"device" | "group">("device");
 
-    // Devices data (matches design columns) - converted to state so edits persist locally
-    const [devicesData, setDevicesData] = useState(() => [
-        { id: 1, image: "/images/product/product-01.jpg", name: 'Macbook pro 13"', address: 'Bến Tre, Châu Thành, Giao Long', group: 'Newsletter', volume: 40, enabled: true },
-        { id: 2, image: "/images/product/product-02.jpg", name: 'Apple Watch Ultra', address: 'Hà Nội, Hoàn Kiếm, P. Chu Trinh', group: 'Current Affairs', volume: 60, enabled: false },
-        { id: 3, image: "/images/product/product-03.jpg", name: 'iPhone 15 Pro Max', address: 'Thừa Thiên Huế, TP. Huế, Phú Hội', group: 'Weather Forecast', volume: 50, enabled: true },
-        { id: 4, image: "/images/product/product-04.jpg", name: 'iPad Pro 3rd Gen', address: 'HCM, Q. 1, Nguyễn Thái Bình', group: 'Play Music', volume: 65, enabled: true },
-        { id: 5, image: "/images/product/product-05.jpg", name: 'Airpods Pro 2nd Gen', address: 'Ninh Bình, Ninh Kiều, Trường Yên', group: 'Play Music', volume: 70, enabled: false },
-        { id: 6, image: "/images/product/product-01.jpg", name: 'Macbook pro 13"', address: 'Đà Nẵng, Hải Châu, Bình Thuận', group: 'Weather Forecast', volume: 55, enabled: true },
-        { id: 7, image: "/images/product/product-02.jpg", name: 'Apple Watch Ultra', address: 'Cần Thơ, Ninh Kiều, An Khánh', group: 'Current Affairs', volume: 75, enabled: true },
-        { id: 8, image: "/images/product/product-03.jpg", name: 'iPhone 15 Pro Max', address: 'Kiên Giang, Rạch Giá, Vĩnh Hòa', group: 'Weather Forecast', volume: 45, enabled: false },
-        { id: 9, image: "/images/product/product-04.jpg", name: 'iPad Pro 3rd Gen', address: 'Quảng Ninh, Hạ Long, Bãi Cháy', group: 'Current Affairs', volume: 80, enabled: true },
-        { id: 10, image: "/images/product/product-05.jpg", name: 'Airpods Pro 2nd Gen', address: 'Bến Tre, Châu Thành, Giao Long', group: 'Newsletter', volume: 40, enabled: false },
-    ]);
+    // Devices data (fetched from API)
+    const [devicesData, setDevicesData] = useState<Device[]>([]);
+    const [loading, setLoading] = useState<boolean>(true);
+    const [fetchError, setFetchError] = useState<string | null>(null);
     const [isEditOpen, setIsEditOpen] = useState(false);
-    const [selectedDevice, setSelectedDevice] = useState<typeof devicesData[number] | null>(null);
+    const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
     const [isAddGroupOpen, setIsAddGroupOpen] = useState(false);
 
     const openAddGroup = () => setIsAddGroupOpen(true);
@@ -66,7 +69,118 @@ export default function BasicTableOne() {
     const deviceEndIndex = Math.min(deviceStartIndex + deviceRowsPerPage, filteredDevices.length);
     const deviceCurrentData = filteredDevices.slice(deviceStartIndex, deviceEndIndex);
 
-    const openEdit = (device: typeof devicesData[number]) => {
+    const handleDeviceRowsPerPageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const newVal = parseInt(e.target.value, 10) || 10;
+        setDeviceRowsPerPage(newVal);
+        setDeviceCurrentPage(1);
+    };
+
+        // fetch devices from API (called on mount)
+        const fetchDevices = async () => {
+            setLoading(true);
+            setFetchError(null);
+            try {
+                const res = await axios.get(
+                    `${API_ROOT}/teknix/musicdash/api/v1/alldevices`,
+                    { withCredentials: true }
+                );
+                console.log("Fetched devices:", res.data.data);
+                const raw = res.data?.data || [];
+                const mapped: Device[] = raw.map((it: any) => ({
+                    id: Number(it.id),
+                    image: it.image || it.image_url || "",
+                    name: it.name || "",
+                    address: it.address || it.location || "",
+                    group: it.deviceGroup || it.group || "",
+                    volume: typeof it.volume === "number" ? it.volume : Number(it.volume) || 0,
+                    enabled: Boolean(it.enabled),
+                }));
+                setDevicesData(mapped);
+            } catch (error: any) {
+                console.error("Failed to fetch devices:", error?.message ?? error);
+                setDevicesData([]);
+                setFetchError(error?.message ?? "Failed to fetch devices");
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        useEffect(() => {
+            fetchDevices();
+        }, []);
+
+
+    // render helper for the device rows (handles loading / error / empty states)
+const renderDeviceRows = () => {
+  if (loading) {
+    return (
+      <TableRow key="loading">
+        <td colSpan={7} className="py-6 text-center">Loading devices...</td>
+      </TableRow>
+    );
+  }
+  if (fetchError) {
+    return (
+      <TableRow key="error">
+                <td colSpan={7} className="py-6 text-center text-red-500">
+                    Error: {fetchError}
+                    <button onClick={fetchDevices} className="ml-2 underline">
+                        Retry
+                    </button>
+                </td>
+      </TableRow>
+    );
+  }
+  if (deviceCurrentData.length === 0) {
+    return (
+      <TableRow key="empty">
+        <td colSpan={7} className="py-6 text-center">No devices found</td>
+      </TableRow>
+    );
+  }
+
+  return deviceCurrentData.map((device) => (
+    <TableRow key={device.id}>
+      <TableCell className="px-4 py-4 border border-gray-100 dark:border-white/[0.05]">
+        <div className="flex items-center justify-center">
+                    <div className="w-10 h-10">
+                        <img src={device.image} alt={device.name} className="object-contain w-full h-full" />
+                    </div>
+        </div>
+      </TableCell>
+      <TableCell>
+        <div>
+          <p className="font-medium text-gray-800 dark:text-white">{device.name}</p>
+          <span className="text-sm text-gray-500">#{device.id}</span>
+        </div>
+      </TableCell>
+      <TableCell>{device.address}</TableCell>
+      <TableCell>{device.group}</TableCell>
+      <TableCell>
+        <div className="flex items-center gap-2">
+          <div className="w-full h-2 bg-gray-200 rounded-full">
+            <div className="h-2 bg-blue-500 rounded-full" style={{ width: `${device.volume}%` }} />
+          </div>
+          <span className="text-xs text-gray-500">{device.volume}%</span>
+        </div>
+      </TableCell>
+      <TableCell className="text-center">
+        <Switch
+          defaultChecked={device.enabled}
+          onChange={(checked) => handleToggleDevice(device.id, checked)}
+        />
+      </TableCell>
+      <TableCell>
+        <button onClick={() => openEdit(device)} className="text-gray-500 hover:text-blue-600">
+          <PencilIcon />
+        </button>
+      </TableCell>
+    </TableRow>
+  ));
+};
+
+
+    const openEdit = (device: Device) => {
         setSelectedDevice(device);
         setIsEditOpen(true);
     };
@@ -76,7 +190,7 @@ export default function BasicTableOne() {
         setIsEditOpen(false);
     };
 
-    const handleSaveDevice = (updated: typeof devicesData[number]) => {
+    const handleSaveDevice = (updated: Device) => {
         setDevicesData((prev) => prev.map((d) => (d.id === updated.id ? updated : d)));
     };
 
@@ -93,8 +207,6 @@ export default function BasicTableOne() {
     const startIndex = (currentPage - 1) * rowsPerPage;
 
 
-
-
     // Rows per page handler
     const handleRowsPerPageChange = (
         e: React.ChangeEvent<HTMLSelectElement>
@@ -102,6 +214,12 @@ export default function BasicTableOne() {
         const newRowsPerPage = parseInt(e.target.value, 10); // Ensure base 10 parsing
         setRowsPerPage(newRowsPerPage);
         setCurrentPage(1); // Reset to first page when rows per page changes
+    };
+
+    const handlePageChange = (newPage: number) => {
+        if (newPage >= 1 && newPage <= Math.max(1, Math.ceil(devicesData.length / rowsPerPage))) {
+            setCurrentPage(newPage);
+        }
     };
 
     return (
@@ -145,8 +263,8 @@ export default function BasicTableOne() {
                                 <div className="relative z-20 bg-transparent">
                                     <select
                                         className="w-full py-2 pl-3 pr-8 text-sm text-gray-800 bg-transparent border border-gray-300 rounded-lg appearance-none dark:bg-dark-900 h-9 bg-none shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 dark:focus:border-brand-800"
-                                        value={rowsPerPage}
-                                        onChange={handleRowsPerPageChange}
+                                        value={deviceRowsPerPage}
+                                        onChange={handleDeviceRowsPerPageChange}
                                     >
                                         <option
                                             value="10"
@@ -330,74 +448,18 @@ export default function BasicTableOne() {
                                             </TableCell>
                                         </TableRow>
                                     </TableHeader>
-                                    <TableBody>
-                                        {deviceCurrentData.map((device) => (
-                                            <TableRow key={device.id}>
-                                                <TableCell className="px-4 py-4 border border-gray-100 dark:border-white/[0.05] dark:text-white/90 whitespace-nowrap">
-                                                    <div className="flex gap-3 items-center">
-
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="w-10 h-10 relative">
-                                                                <Image src={device.image} alt={device.name} fill className="object-contain" />
-                                                            </div>
-
-                                                        </div>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="px-4 py-4 border border-gray-100 dark:border-white/[0.05] dark:text-white/90 whitespace-nowrap">
-                                                    <div>
-                                                        <p className="block font-medium text-gray-800 text-theme-sm dark:text-white/90">
-                                                            {device.name}
-                                                        </p>
-                                                        <span className="text-sm font-normal text-gray-500 dark:text-gray-400">
-                                                            #{device.id}
-                                                        </span>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="px-4 py-4 font-normal text-gray-800 border border-gray-100 dark:border-white/[0.05] text-theme-sm dark:text-gray-400 whitespace-nowrap">
-                                                    <span>{device.address}</span>
-                                                </TableCell>
-                                                <TableCell className="px-4 py-4 font-normal text-gray-800 border border-gray-100 dark:border-white/[0.05] text-theme-sm dark:text-white/90 whitespace-nowrap">
-                                                    {device.group}
-                                                </TableCell>
-                                                <TableCell className="px-4 py-4 w-56 border border-gray-100 dark:border-white/[0.05]">
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="w-full h-2 bg-gray-200 rounded-full">
-                                                            <div
-                                                                className="h-2 bg-blue-500 rounded-full"
-                                                                style={{ width: `${device.volume}%` }}
-                                                            ></div>
-                                                        </div>
-                                                        <span className="text-gray-500 text-xs">{device.volume}%</span>
-
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="px-4 py-4 border border-gray-100 dark:border-white/[0.05]">
-                                                    <div className="flex items-center justify-center w-full">
-                                                        <Switch defaultChecked={device.enabled} onChange={(checked) => handleToggleDevice(device.id, checked)} />
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="px-4 py-4 font-normal text-gray-800 border border-gray-100 dark:border-white/[0.05] text-theme-sm dark:text-white/90 whitespace-nowrap">
-                                                    <div className="flex items-center w-full gap-2">
-                                                        <button onClick={() => openEdit(device)} className="text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white/90">
-                                                            <PencilIcon />
-                                                        </button>
-                                                    </div>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
+                                    <TableBody>{renderDeviceRows()}</TableBody>
                                 </Table>
                             </div>
 
                             <div className="border-t border-gray-100 flex items-center justify-between">
                                 <div className="pb-3 xl:pb-0">
                                     <p className="pb-3 pl-[10px] text-sm font-medium text-center text-gray-500 border-b border-gray-100 dark:border-gray-800 dark:text-gray-400 xl:border-b-0 xl:pb-0 xl:text-left">
-                                        Showing {deviceStartIndex + 1} to {deviceEndIndex} of {devicesData.length} entries
-                                    </p>
+                                            Showing {deviceStartIndex + 1} to {deviceEndIndex} of {filteredDevices.length} entries
+                                        </p>
                                 </div>
                                 <div className="col-span-1 sm:col-span-2 lg:col-span-3 mt-6 flex justify-center">
-                                    <PaginationWithTextWitIcon totalPages={10} initialPage={1} />
+                                        <PaginationWithTextWitIcon totalPages={deviceTotalPages} initialPage={deviceCurrentPage} onPageChange={handleDevicePageChange} />
                                 </div>
                             </div>
                         </div>
@@ -413,29 +475,29 @@ export default function BasicTableOne() {
                             <span className="text-gray-500 dark:text-gray-400"> Show </span>
                             <div className="relative z-20 bg-transparent">
                                 <select
-                                    className="w-full py-2 pl-3 pr-8 text-sm text-gray-800 bg-transparent border border-gray-300 rounded-lg appearance-none dark:bg-dark-900 h-9 bg-none shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 dark:focus:border-brand-800"
-                                    value={rowsPerPage}
-                                    onChange={handleRowsPerPageChange}
-                                >
-                                    <option
-                                        value="10"
-                                        className="text-gray-500 dark:bg-gray-900 dark:text-gray-400"
+                                        className="w-full py-2 pl-3 pr-8 text-sm text-gray-800 bg-transparent border border-gray-300 rounded-lg appearance-none dark:bg-dark-900 h-9 bg-none shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 dark:focus:border-brand-800"
+                                        value={deviceRowsPerPage}
+                                        onChange={handleDeviceRowsPerPageChange}
                                     >
-                                        10
-                                    </option>
-                                    <option
-                                        value="8"
-                                        className="text-gray-500 dark:bg-gray-900 dark:text-gray-400"
-                                    >
-                                        8
-                                    </option>
-                                    <option
-                                        value="5"
-                                        className="text-gray-500 dark:bg-gray-900 dark:text-gray-400"
-                                    >
-                                        5
-                                    </option>
-                                </select>
+                                        <option
+                                            value="10"
+                                            className="text-gray-500 dark:bg-gray-900 dark:text-gray-400"
+                                        >
+                                            10
+                                        </option>
+                                        <option
+                                            value="8"
+                                            className="text-gray-500 dark:bg-gray-900 dark:text-gray-400"
+                                        >
+                                            8
+                                        </option>
+                                        <option
+                                            value="5"
+                                            className="text-gray-500 dark:bg-gray-900 dark:text-gray-400"
+                                        >
+                                            5
+                                        </option>
+                                    </select>
                                 <span className="absolute z-30 text-gray-500 -translate-y-1/2 right-2 top-1/2 dark:text-gray-400">
                                     <svg
                                         className="stroke-current"
@@ -607,78 +669,20 @@ export default function BasicTableOne() {
                                         </TableCell>
                                     </TableRow>
                                 </TableHeader>
-                                <TableBody>
-                                    {deviceCurrentData.map((device) => (
-                                        <TableRow key={device.id}>
-                                            <TableCell className="px-4 py-4 border border-gray-100 dark:border-white/[0.05] dark:text-white/90 whitespace-nowrap">
-                                                <div className="flex gap-3 items-center">
-                                                    <div className="mt-1">
-
-                                                    </div>
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-10 h-10 relative">
-                                                            <Image src={device.image} alt={device.name} fill className="object-contain" />
-                                                        </div>
-
-                                                    </div>
-                                                </div>
-                                            </TableCell>
-                                            <TableCell className="px-4 py-4 border border-gray-100 dark:border-white/[0.05] dark:text-white/90 whitespace-nowrap">
-                                                <div>
-                                                    <p className="block font-medium text-gray-800 text-theme-sm dark:text-white/90">
-                                                        {device.name}
-                                                    </p>
-                                                    <span className="text-sm font-normal text-gray-500 dark:text-gray-400">
-                                                        #{device.id}
-                                                    </span>
-                                                </div>
-                                            </TableCell>
-                                            <TableCell className="px-4 py-4 font-normal text-gray-800 border border-gray-100 dark:border-white/[0.05] text-theme-sm dark:text-gray-400 whitespace-nowrap">
-                                                <span>{device.address}</span>
-                                            </TableCell>
-                                            <TableCell className="px-4 py-4 font-normal text-gray-800 border border-gray-100 dark:border-white/[0.05] text-theme-sm dark:text-white/90 whitespace-nowrap">
-                                                {device.group}
-                                            </TableCell>
-                                            <TableCell className="px-4 py-4 w-56 border border-gray-100 dark:border-white/[0.05]">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-full h-2 bg-gray-200 rounded-full">
-                                                        <div
-                                                            className="h-2 bg-blue-500 rounded-full"
-                                                            style={{ width: `${device.volume}%` }}
-                                                        ></div>
-                                                    </div>
-                                                    <span className="text-gray-500 text-xs">{device.volume}%</span>
-
-                                                </div>
-                                            </TableCell>
-                                            <TableCell className="px-4 py-4 border border-gray-100 dark:border-white/[0.05]">
-                                                <div className="flex items-center justify-center w-full">
-                                                    <Switch defaultChecked={device.enabled} onChange={(checked) => handleToggleDevice(device.id, checked)} />
-                                                </div>
-                                            </TableCell>
-                                            <TableCell className="px-4 py-4 font-normal text-gray-800 border border-gray-100 dark:border-white/[0.05] text-theme-sm dark:text-white/90 whitespace-nowrap">
-                                                <div className="flex items-center w-full gap-2">
-                                                    <button className="text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white/90">
-                                                        <PencilIcon />
-                                                    </button>
-                                                </div>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
+                                <TableBody>{renderDeviceRows()}</TableBody>
                             </Table>
                         </div>
 
-                        <div className="border-t border-gray-100 flex items-center justify-between">
-                            <div className="pb-3 xl:pb-0">
-                                <p className="pb-3 pl-[10px] text-sm font-medium text-center text-gray-500 border-b border-gray-100 dark:border-gray-800 dark:text-gray-400 xl:border-b-0 xl:pb-0 xl:text-left">
-                                    Showing {startIndex + 1} to {deviceEndIndex} of {deviceTotalPages} entries
-                                </p>
+                         <div className="border-t border-gray-100 flex items-center justify-between">
+                                <div className="pb-3 xl:pb-0">
+                                    <p className="pb-3 pl-[10px] text-sm font-medium text-center text-gray-500 border-b border-gray-100 dark:border-gray-800 dark:text-gray-400 xl:border-b-0 xl:pb-0 xl:text-left">
+                                            Showing {deviceStartIndex + 1} to {deviceEndIndex} of {filteredDevices.length} entries
+                                        </p>
+                                </div>
+                                <div className="col-span-1 sm:col-span-2 lg:col-span-3 mt-6 flex justify-center">
+                                        <PaginationWithTextWitIcon totalPages={deviceTotalPages} initialPage={deviceCurrentPage} onPageChange={handleDevicePageChange} />
+                                </div>
                             </div>
-                            <div className="col-span-1 sm:col-span-2 lg:col-span-3 mt-6 flex justify-center">
-                                <PaginationWithTextWitIcon totalPages={10} initialPage={1} />
-                            </div>
-                        </div>
                     </div>
                 </div>
             )}

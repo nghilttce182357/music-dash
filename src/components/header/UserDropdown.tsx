@@ -37,9 +37,9 @@ export default function UserDropdown() {
         const res = await axios.get(`${API_ROOT}/teknix/musicdash/api/v1/user/profile`, {
           withCredentials: true, 
         });
-          console.log("User API response:", res.data); 
+          console.log("User API response:", res.data.data); 
 
-        setUser(res.data[0]);
+        setUser(res.data.data[0]);
       } catch (err) {
         console.error("Failed to fetch user:", err);
       } finally {

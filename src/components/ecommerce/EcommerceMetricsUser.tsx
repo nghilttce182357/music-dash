@@ -22,8 +22,8 @@ export const EcommerceMetrics = () => {
         const res = await axios.get(`${API_ROOT}/teknix/musicdash/api/v1/devices/stats`, {
           withCredentials: true, // nếu backend dùng cookie
         });
-        console.log("Device stats:", res.data);
-        setStats(res.data[0]);
+        console.log("Device stats:", res.data.data);
+        setStats(res.data.data[0]);
       } catch (err: any) {
         console.error("Failed to fetch device stats:", err.message);
       } finally {
