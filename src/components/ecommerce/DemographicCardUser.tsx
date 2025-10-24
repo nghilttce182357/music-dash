@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import axios from "axios";
+import mockapi from "@/utils/mockapi";
 import CountryMap from "./CountryMap";
 import {
   Table,
@@ -12,7 +12,7 @@ import {
   TableRow,
 } from "../ui/table";
 import PaginationWithTextWitIcon from "../ui/pagination/PaginationWithTextWitIcon";
-import { API_ROOT } from "@/utils/constants";
+import { MOCK_API_URL } from "@/utils/constants";
 
 interface Device {
   id: number;
@@ -42,8 +42,8 @@ export default function DemographicCard() {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const res = await axios.get(
-          `${API_ROOT}/teknix/musicdash/api/v1/category`,
+        const res = await mockapi.get(
+          `${MOCK_API_URL}/teknix/musicdash/api/v1/category`,
           { withCredentials: true }
         );
         console.log("Fetched categories:", res.data.data);
@@ -61,8 +61,8 @@ export default function DemographicCard() {
     const fetchDevices = async () => {
       setLoading(true);
       try {
-        const res = await axios.get(
-          `${API_ROOT}/teknix/musicdash/api/v1/device`,
+        const res = await mockapi.get(
+          `${MOCK_API_URL}/teknix/musicdash/api/v1/device`,
           { withCredentials: true }
         );
         console.log("Fetched devices:", res.data.data);
@@ -83,9 +83,9 @@ export default function DemographicCard() {
     selectedCategory === "All"
       ? devices
       : devices.filter(
-          (device) =>
-            device.category.toLowerCase() === selectedCategory.toLowerCase()
-        );
+        (device) =>
+          device.category.toLowerCase() === selectedCategory.toLowerCase()
+      );
 
   //  Pagination logic
   const totalPages = Math.ceil(filteredDevices.length / devicesPerPage);

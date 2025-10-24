@@ -3,14 +3,14 @@
 import React from "react";
 import Image from "next/image";
 import Link from "next/link";
-import axios from "axios";
+import mockapi from "@/utils/mockapi";
 
 import PaginationWithTextWitIcon from "../ui/pagination/PaginationWithTextWitIcon";
 import { TrashBinIcon } from "@/icons";
 import { Modal } from "../ui/modal";
 import DropzoneComponent from "../form/form-elements/DropZone";
 import Checkbox from "../form/input/Checkbox";
-import { API_ROOT } from "@/utils/constants";
+import { MOCK_API_URL } from "@/utils/constants";
 
 type Song = {
   id: number;
@@ -43,7 +43,7 @@ const initialPlaylists: Playlist[] = [
 ];
 
 // ====== Config API ======
-const SONGS_API_URL = `${API_ROOT}/teknix/project1/songs`;
+const SONGS_API_URL = `${MOCK_API_URL}/teknix/project1/songs`;
 // Nếu có playlists API, bật dòng sau và dùng nó trong effect tương tự songs:
 // const PLAYLISTS_API_URL = `${API_BASE}/teknix/project1/playlists`;
 
@@ -101,7 +101,7 @@ export default function BasicTableOne() {
       setLoadingSongs(true);
       setSongsError(null);
       try {
-        const res = await axios.get(SONGS_API_URL, { withCredentials: true });
+        const res = await mockapi.get(SONGS_API_URL, { withCredentials: true });
         const data = res.data;
 
         if (!Array.isArray(data)) {
@@ -134,7 +134,7 @@ export default function BasicTableOne() {
   //   let canceled = false;
   //   (async () => {
   //     try {
-  //       const res = await axios.get(PLAYLISTS_API_URL, { withCredentials: true });
+  //       const res = await mockapi.get(PLAYLISTS_API_URL, { withCredentials: true });
   //       const data = res.data;
   //       if (!Array.isArray(data)) throw new Error("Invalid playlists payload");
   //       const normalized: Playlist[] = data.map((p: any, idx: number) => ({
@@ -168,7 +168,7 @@ export default function BasicTableOne() {
     resetForm();
 
     // (Optional) POST lên API nếu bạn muốn lưu server-side:
-    // axios.post(SONGS_API_URL, { ...payload });
+    // mockapi.post(SONGS_API_URL, { ...payload });
   };
 
   const handleSavePlaylist = () => {
@@ -187,7 +187,7 @@ export default function BasicTableOne() {
     setPlaylistCover(null);
 
     // (Optional) POST playlist API
-    // axios.post(PLAYLISTS_API_URL, { ...payload });
+    // mockapi.post(PLAYLISTS_API_URL, { ...payload });
   };
 
   const handleDeleteSelected = () => {
@@ -225,17 +225,15 @@ export default function BasicTableOne() {
           <div className="flex items-center gap-4">
             <button
               onClick={() => setActiveTab("media")}
-              className={`pb-3 font-semibold border-b-2 transition-colors ${
-                activeTab === "media" ? "text-orange-500 border-orange-400" : "text-gray-400 border-transparent"
-              }`}
+              className={`pb-3 font-semibold border-b-2 transition-colors ${activeTab === "media" ? "text-orange-500 border-orange-400" : "text-gray-400 border-transparent"
+                }`}
             >
               Media
             </button>
             <button
               onClick={() => setActiveTab("playlist")}
-              className={`pb-3 font-semibold border-b-2 transition-colors ${
-                activeTab === "playlist" ? "text-orange-500 border-orange-400" : "text-gray-400 border-transparent"
-              }`}
+              className={`pb-3 font-semibold border-b-2 transition-colors ${activeTab === "playlist" ? "text-orange-500 border-orange-400" : "text-gray-400 border-transparent"
+                }`}
             >
               Play list
             </button>
@@ -288,16 +286,14 @@ export default function BasicTableOne() {
                 else handleDeleteSelectedPlaylists();
               }}
               disabled={activeTab === "media" ? selectedIds.size === 0 : selectedPlaylistIds.size === 0}
-              className={`inline-flex items-center gap-2 rounded-lg border px-4 py-2.5 text-theme-sm font-medium ${
-                (activeTab === "media" ? selectedIds.size === 0 : selectedPlaylistIds.size === 0)
-                  ? "border-gray-200 text-gray-300 bg-gray-50 cursor-not-allowed"
-                  : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:text-gray-800"
-              }`}
+              className={`inline-flex items-center gap-2 rounded-lg border px-4 py-2.5 text-theme-sm font-medium ${(activeTab === "media" ? selectedIds.size === 0 : selectedPlaylistIds.size === 0)
+                ? "border-gray-200 text-gray-300 bg-gray-50 cursor-not-allowed"
+                : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:text-gray-800"
+                }`}
             >
               <TrashBinIcon
-                className={`w-4 h-4 ${
-                  (activeTab === "media" ? selectedIds.size === 0 : selectedPlaylistIds.size === 0) ? "text-gray-300" : "text-gray-500"
-                }`}
+                className={`w-4 h-4 ${(activeTab === "media" ? selectedIds.size === 0 : selectedPlaylistIds.size === 0) ? "text-gray-300" : "text-gray-500"
+                  }`}
               />
               Delete
             </button>
@@ -481,7 +477,7 @@ export default function BasicTableOne() {
                               try {
                                 const url = await readFileAsDataUrl(file);
                                 setPlaylistCover(url);
-                              } catch {}
+                              } catch { }
                             }}
                           />
                         </div>
@@ -529,7 +525,7 @@ export default function BasicTableOne() {
                               try {
                                 const url = await readFileAsDataUrl(file);
                                 setMediaCover(url);
-                              } catch {}
+                              } catch { }
                             }}
                           />
                         </div>

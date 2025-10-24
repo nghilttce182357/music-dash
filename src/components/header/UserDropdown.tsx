@@ -3,11 +3,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import mockapi from "@/utils/mockapi";
 
 import { Dropdown } from "../ui/dropdown/Dropdown";
 import { DropdownItem } from "../ui/dropdown/DropdownItem";
-import { API_ROOT } from "@/utils/constants"; // lấy base URL từ constants.ts
+import { MOCK_API_URL } from "@/utils/constants"; // lấy base URL từ constants.ts
 
 // Kiểu dữ liệu user trả về từ API
 interface UserProfile {
@@ -34,10 +34,10 @@ export default function UserDropdown() {
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const res = await axios.get(`${API_ROOT}/teknix/musicdash/api/v1/user/profile`, {
-          withCredentials: true, 
+        const res = await mockapi.get(`${MOCK_API_URL}/teknix/musicdash/api/v1/user/profile`, {
+          withCredentials: true,
         });
-          console.log("User API response:", res.data.data); 
+        console.log("User API response:", res.data.data);
 
         setUser(res.data.data[0]);
       } catch (err) {
@@ -70,9 +70,8 @@ export default function UserDropdown() {
         </span>
 
         <svg
-          className={`stroke-gray-500 dark:stroke-gray-400 transition-transform duration-200 ${
-            isOpen ? "rotate-180" : ""
-          }`}
+          className={`stroke-gray-500 dark:stroke-gray-400 transition-transform duration-200 ${isOpen ? "rotate-180" : ""
+            }`}
           width="18"
           height="20"
           viewBox="0 0 18 20"

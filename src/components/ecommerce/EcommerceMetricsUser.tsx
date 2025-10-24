@@ -1,9 +1,9 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import mockapi from "@/utils/mockapi";
 import Badge from "../ui/badge/Badge";
 import { ArrowDownIcon, Clock, Tick } from "@/icons";
-import { API_ROOT } from "@/utils/constants"; // nếu bạn đã có base URL ở đây
+import { MOCK_API_URL } from "@/utils/constants"; // nếu bạn đã có base URL ở đây
 
 interface DeviceStats {
   onlineDevices: number;
@@ -19,7 +19,7 @@ export const EcommerceMetrics = () => {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const res = await axios.get(`${API_ROOT}/teknix/musicdash/api/v1/devices/stats`, {
+        const res = await mockapi.get(`${MOCK_API_URL}/teknix/musicdash/api/v1/devices/stats`, {
           withCredentials: true, // nếu backend dùng cookie
         });
         console.log("Device stats:", res.data.data);

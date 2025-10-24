@@ -1,10 +1,10 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import mockapi from "@/utils/mockapi";
 import dynamic from "next/dynamic";
 import { worldMill } from "@react-jvectormap/world";
-import { API_ROOT } from "@/utils/constants";
+import { MOCK_API_URL } from "@/utils/constants";
 
 const VectorMap = dynamic(
   () => import("@react-jvectormap/core").then((mod) => mod.VectorMap),
@@ -40,8 +40,8 @@ const CountryMap: React.FC<CountryMapProps> = ({ mapColor }) => {
   useEffect(() => {
     const fetchLocations = async () => {
       try {
-        const res = await axios.get<{ data: DeviceLocation[] }>(
-          `${API_ROOT}/teknix/musicdash/api/v1/devices/locations`, 
+        const res = await mockapi.get<{ data: DeviceLocation[] }>(
+          `${MOCK_API_URL}/teknix/musicdash/api/v1/devices/locations`,
           { withCredentials: true }
         );
 

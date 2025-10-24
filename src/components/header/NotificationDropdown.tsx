@@ -2,10 +2,10 @@
 import Image from "next/image";
 import Link from "next/link";
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import mockapi from "@/utils/mockapi";
 import { Dropdown } from "../ui/dropdown/Dropdown";
 import { DropdownItem } from "../ui/dropdown/DropdownItem";
-import { API_ROOT } from "@/utils/constants"; // nếu bạn có file constants.ts
+import { MOCK_API_URL } from "@/utils/constants"; // nếu bạn có file constants.ts
 
 type NotificationItem = {
   name: string;
@@ -25,7 +25,7 @@ export default function NotificationDropdown() {
   useEffect(() => {
     const fetchNotifications = async () => {
       try {
-        const res = await axios.get(`${API_ROOT}/teknix/musicdash/api/v1/user/notifications`, {
+        const res = await mockapi.get(`${MOCK_API_URL}/teknix/musicdash/api/v1/user/notifications`, {
           withCredentials: true,
         });
         console.log("Notifications API response:", res.data.data);
@@ -52,9 +52,8 @@ export default function NotificationDropdown() {
         onClick={handleClick}
       >
         <span
-          className={`absolute right-0 top-0.5 z-10 h-2 w-2 rounded-full bg-orange-400 ${
-            !notifying ? "hidden" : "flex"
-          }`}
+          className={`absolute right-0 top-0.5 z-10 h-2 w-2 rounded-full bg-orange-400 ${!notifying ? "hidden" : "flex"
+            }`}
         >
           <span className="absolute inline-flex w-full h-full bg-orange-400 rounded-full opacity-75 animate-ping"></span>
         </span>
@@ -93,7 +92,7 @@ export default function NotificationDropdown() {
 
         <ul className="flex flex-col h-auto overflow-y-auto custom-scrollbar">
           {notifications.length > 0 ? (
-            notifications.map((item,index) => (
+            notifications.map((item, index) => (
               <li key={index}>
                 <DropdownItem
                   onItemClick={closeDropdown}
