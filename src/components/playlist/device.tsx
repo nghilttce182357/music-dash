@@ -192,6 +192,13 @@ export default function BasicTableOne() {
 
   const handleSaveDevice = (updated: Device) => {
     setDevicesData((prev) => prev.map((d) => (d.id === updated.id ? updated : d)));
+    // Re-fetch devices from server to ensure UI reflects persisted state
+    try {
+      fetchDevices();
+    } catch (err) {
+      // ignore fetch errors here; fetchDevices handles its own errors
+      console.warn('Refetch after save failed', err);
+    }
   };
 
   const handleToggleDevice = (id: number, checked: boolean) => {
