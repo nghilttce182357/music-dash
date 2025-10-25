@@ -43,7 +43,7 @@ export default function DemographicCard() {
     const fetchCategories = async () => {
       try {
         const res = await mockapi.get(
-          `${MOCK_API_URL}/teknix1/musicdashboard/api/v1/category`,
+          `${MOCK_API_URL}/teknix1/musicdashboard/api/v1/categories`,
           { withCredentials: true }
         );
         console.log("Fetched categories:", res.data.data);
@@ -62,7 +62,7 @@ export default function DemographicCard() {
       setLoading(true);
       try {
         const res = await mockapi.get(
-          `${MOCK_API_URL}/teknix1/musicdashboard/api/v1/device`,
+          `${MOCK_API_URL}/teknix1/musicdashboard/api/v1/devices`,
           { withCredentials: true }
         );
         console.log("Fetched devices:", res.data.data);
@@ -82,10 +82,11 @@ export default function DemographicCard() {
   const filteredDevices =
     selectedCategory === "All"
       ? devices
-      : devices.filter(
-        (device) =>
-          device.category.toLowerCase() === selectedCategory.toLowerCase()
-      );
+      : devices.filter((device) => {
+          // some devices may have null/undefined category from the API — guard against that
+          const deviceCategory = (device.category ?? "").toString();
+          return deviceCategory.toLowerCase() === selectedCategory.toLowerCase();
+        });
 
   //  Pagination logic
   const totalPages = Math.ceil(filteredDevices.length / devicesPerPage);

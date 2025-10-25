@@ -19,7 +19,7 @@ export const EcommerceMetrics = () => {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const res = await mockapi.get(`${MOCK_API_URL}/teknix1/musicdashboard/api/v1/devices/stats`, {
+        const res = await mockapi.get(`${MOCK_API_URL}/teknix1/musicdashboard/api/v1/devices-status`, {
           withCredentials: true, // nếu backend dùng cookie
         });
         console.log("Device stats:", res.data.data);

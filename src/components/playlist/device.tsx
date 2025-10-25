@@ -46,6 +46,17 @@ export default function BasicTableOne() {
   const handleSaveGroup = (groupName: string, selectedDeviceIds: number[]) => {
     // For now just print and close; in real app you'd persist
     console.log('Save group', groupName, selectedDeviceIds);
+    // After creating group devices, re-fetch devices so the table shows newly created devices
+    try {
+      // ensure we show the group tab where new devices belong
+      setActiveTab('group');
+      // reset pagination to first page to make new items visible
+      setDeviceCurrentPage(1);
+      // fetch latest devices from server
+      fetchDevices();
+    } catch (err) {
+      console.warn('Failed to refresh devices after creating group', err);
+    }
   };
 
   // pagination for devices table
@@ -81,7 +92,7 @@ export default function BasicTableOne() {
     setFetchError(null);
     try {
       const res = await mockapi.get(
-        `${MOCK_API_URL}/teknix1/musicdashboard/api/v1/alldevices`,
+        `${MOCK_API_URL}/teknix1/musicdashboard/api/v1/devices`,
         { withCredentials: true }
       );
       console.log("Fetched devices:", res.data.data);

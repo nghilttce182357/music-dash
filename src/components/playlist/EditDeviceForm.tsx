@@ -88,7 +88,7 @@ export default function EditDeviceForm({ open, device, onClose, onSave }: Props)
       console.log("PUT PAYLOAD:", payload);
 
       const res = await mockapi.put(
-        `${MOCK_API_URL}/teknix1/musicdashboard/api/v1/alldevices/${form.id}`,
+        `${MOCK_API_URL}/teknix1/musicdashboard/api/v1/devices/${form.id}`,
         payload,
         {
           headers: { "Content-Type": "application/json" },
