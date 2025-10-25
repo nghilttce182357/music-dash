@@ -1,65 +1,68 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import mockapi from "@/utils/mockapi";
+import axios from "axios";
+import { TEKNIX_USER_ACCESS_TOKEN } from "@/utils/constants";
 
 import PaginationWithTextWitIcon from "../ui/pagination/PaginationWithTextWitIcon";
 import { TrashBinIcon } from "@/icons";
 import { Modal } from "../ui/modal";
 import DropzoneComponent from "../form/form-elements/DropZone";
 import Checkbox from "../form/input/Checkbox";
-import { MOCK_API_URL } from "@/utils/constants";
 
-type Song = {
-  id: number;
+// ===== Types =====
+type Music = {
+  id: string;
   title: string;
-  artist: string;
-  duration: string;
-  cover: string;
+  artist?: string;
+  durationSeconds: number;
+  fileUrl: string;
+  cover?: string;
 };
 
 type Playlist = {
-  id: number;
+  id: string;
   name: string;
-  artist: string | number;
-  year: number;
-  cover: string;
-  songs: number;
+  coverUrl?: string;
+  userId: string;
+  isPublic: boolean;
+  createdAt: string;
+  updatedAt: string;
+  totalDurationSeconds: number;
+  trackCount: number;
 };
 
-// ===== Optional seed playlists (xóa hoặc thay bằng API nếu bạn có endpoint) =====
-const initialPlaylists: Playlist[] = [
-  { id: 1, name: "Dawn FM", artist: "The Weeknd", year: 2022, cover: "/images/music/starboy.svg", songs: 16 },
-  { id: 2, name: "Sweetener", artist: "Ariana Grande", year: 2021, cover: "/images/music/sweetener.svg", songs: 16 },
-  { id: 3, name: "First Impact", artist: "Treasure", year: 2021, cover: "/images/music/firstimpact.svg", songs: 14 },
-  { id: 4, name: "Lorem Ipsum", artist: "Nova", year: 2021, cover: "/images/music/nova.svg", songs: 15 },
-  { id: 5, name: "Acidrap", artist: "Acidrap", year: 2022, cover: "/images/music/acidrap1.svg", songs: 22 },
-  { id: 6, name: "Pain (Official)", artist: "Ryan Jones", year: 2021, cover: "/images/music/pain.svg", songs: 18 },
-  { id: 7, name: "Sweetener", artist: "Ariana Grande", year: 2021, cover: "/images/music/sweetener.svg", songs: 16 },
-  { id: 8, name: "First Impact", artist: "Treasure", year: 2021, cover: "/images/music/firstimpact.svg", songs: 14 },
-  { id: 9, name: "Dawn FM", artist: "The Weeknd", year: 2022, cover: "/images/music/starboy.svg", songs: 16 },
-];
-
-// ====== Config API ======
-const SONGS_API_URL = `${MOCK_API_URL}/teknix/project1/songs`;
-// Nếu có playlists API, bật dòng sau và dùng nó trong effect tương tự songs:
-// const PLAYLISTS_API_URL = `${API_BASE}/teknix/project1/playlists`;
+// ===== API config =====
+const MUSIC_API_URL = `/api/v1/music`;
+const PLAYLISTS_API_URL = `/api/v1/playlists`;
 
 export default function BasicTableOne() {
+  // Pagination state - Music
+  const [currentMusicPage, setCurrentMusicPage] = React.useState(1);
+  const [musicPageSize] = React.useState(20);
+  const [totalMusicItems, setTotalMusicItems] = React.useState(0);
+  const [totalMusicPages, setTotalMusicPages] = React.useState(1);
+
+  // Pagination state - Playlists
+  const [currentPlaylistPage, setCurrentPlaylistPage] = React.useState(1);
+  const [playlistPageSize] = React.useState(20);
+  const [totalPlaylistItems, setTotalPlaylistItems] = React.useState(0);
+  const [totalPlaylistPages, setTotalPlaylistPages] = React.useState(1);
+
   // UI state
   const [activeTab, setActiveTab] = React.useState<"media" | "playlist">("media");
   const [searchTerm, setSearchTerm] = React.useState("");
   const [isAddOpen, setIsAddOpen] = React.useState(false);
 
   // Data
-  const [songs, setSongs] = React.useState<Song[]>([]);
-  const [playlists, setPlaylists] = React.useState<Playlist[]>(initialPlaylists);
+  const [music, setMusic] = React.useState<Music[]>([]);
+  const [playlists, setPlaylists] = React.useState<Playlist[]>([]);
 
   // Selection
-  const [selectedIds, setSelectedIds] = React.useState<Set<number>>(new Set());
-  const [selectedPlaylistIds, setSelectedPlaylistIds] = React.useState<Set<number>>(new Set());
+  const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
+  const [selectedPlaylistIds, setSelectedPlaylistIds] = React.useState<Set<string>>(new Set());
 
   // Form: media
   const [mediaName, setMediaName] = React.useState("");
@@ -72,8 +75,14 @@ export default function BasicTableOne() {
   const [playlistCover, setPlaylistCover] = React.useState<string | null>(null);
 
   // Loading / Error
-  const [loadingSongs, setLoadingSongs] = React.useState(false);
-  const [songsError, setSongsError] = React.useState<string | null>(null);
+  const [loadingMusic, setLoadingMusic] = React.useState(false);
+  const [musicError, setMusicError] = React.useState<string | null>(null);
+  const [loadingPlaylists, setLoadingPlaylists] = React.useState(false);
+  const [playlistsError, setPlaylistsError] = React.useState<string | null>(null);
+
+  // Audio playback state
+  const [isPlaying, setIsPlaying] = React.useState(false);
+  const [currentPlayingId, setCurrentPlayingId] = React.useState<string | null>(null);
 
   // Helpers
   const resetForm = () => {
@@ -93,129 +102,275 @@ export default function BasicTableOne() {
       reader.readAsDataURL(file);
     });
 
-  // ====== Fetch songs (API-first, no localStorage) ======
+  // ====== Fetch music from API with pagination ======
   React.useEffect(() => {
     let canceled = false;
-
     (async () => {
-      setLoadingSongs(true);
-      setSongsError(null);
+      setLoadingMusic(true);
+      setMusicError(null);
       try {
-        const res = await mockapi.get(SONGS_API_URL, { withCredentials: true });
-        const data = res.data;
+        const response = await axios.get(MUSIC_API_URL, {
+          headers: {
+            Authorization: `Bearer ${TEKNIX_USER_ACCESS_TOKEN}`,
+          },
+          params: {
+            page: currentMusicPage,
+            pageSize: musicPageSize,
+          },
+        });
 
-        if (!Array.isArray(data)) {
-          throw new Error("Invalid songs payload (expected array)");
+        const raw = response.data;
+
+        if (!raw?.success || !raw?.data?.data || !Array.isArray(raw.data.data)) {
+          throw new Error("Invalid music payload (expected array)");
         }
 
-        const formatted: Song[] = data.map((item: any, index: number) => ({
-          id: Number(item.id ?? index + 1),
-          title: String(item.title ?? "Unknown Title"),
-          artist: String(item.artist ?? "Unknown Artist"),
-          duration: String(item.duration ?? "00:00"),
-          cover: String(item.cover ?? "/images/music/default-cover.svg"),
+        const formatted: Music[] = raw.data.data.map((item: any) => ({
+          id: item.id,
+          title: item.title ?? "Unknown Title",
+          artist: item.artist ?? "Unknown Artist",
+          durationSeconds: item.durationSeconds ?? 0,
+          fileUrl: item.fileUrl,
+          cover: item.cover ?? "/images/music/default-cover.svg",
         }));
 
-        if (!canceled) setSongs(formatted);
+        if (!canceled) {
+          setMusic(formatted);
+          setTotalMusicItems(raw.data.total ?? 0);
+          setTotalMusicPages(raw.data.totalPages ?? 1);
+        }
       } catch (err: any) {
-        if (!canceled) setSongsError(err?.message ?? "Failed to fetch songs");
+        if (!canceled) {
+          setMusicError(err?.message ?? "Failed to fetch music");
+          setMusic([]);
+        }
       } finally {
-        if (!canceled) setLoadingSongs(false);
+        if (!canceled) setLoadingMusic(false);
       }
     })();
-
     return () => {
       canceled = true;
     };
-  }, []);
+  }, [currentMusicPage, musicPageSize]);
 
-  // Nếu có API playlists, bạn có thể fetch tương tự như trên
-  // React.useEffect(() => {
-  //   let canceled = false;
-  //   (async () => {
-  //     try {
-  //       const res = await mockapi.get(PLAYLISTS_API_URL, { withCredentials: true });
-  //       const data = res.data;
-  //       if (!Array.isArray(data)) throw new Error("Invalid playlists payload");
-  //       const normalized: Playlist[] = data.map((p: any, idx: number) => ({
-  //         id: Number(p.id ?? idx + 1),
-  //         name: String(p.name ?? "Untitled"),
-  //         artist: String(p.artist ?? "Unknown"),
-  //         year: Number(p.year ?? new Date().getFullYear()),
-  //         cover: String(p.cover ?? "/images/music/default-cover.svg"),
-  //         songs: Number(p.songs ?? 0)
-  //       }));
-  //       if (!canceled) setPlaylists(normalized);
-  //     } catch (e) {
-  //       // Giữ initialPlaylists nếu API fail
-  //     }
-  //   })();
-  //   return () => { canceled = true; };
-  // }, []);
+  // ====== Fetch playlists from API with pagination ======
+  React.useEffect(() => {
+    let canceled = false;
+    (async () => {
+      setLoadingPlaylists(true);
+      setPlaylistsError(null);
+      try {
+        const response = await axios.get(PLAYLISTS_API_URL, {
+          headers: {
+            Authorization: `Bearer ${TEKNIX_USER_ACCESS_TOKEN}`,
+          },
+          params: {
+            page: currentPlaylistPage,
+            pageSize: playlistPageSize,
+          },
+        });
+
+        const raw = response.data;
+
+        if (!raw?.success || !raw?.data?.data || !Array.isArray(raw.data.data)) {
+          throw new Error("Invalid playlists payload (expected array)");
+        }
+
+        const formatted: Playlist[] = raw.data.data.map((item: any) => ({
+          id: item.id,
+          name: item.name ?? "Untitled",
+          coverUrl: item.coverUrl,
+          userId: item.userId,
+          isPublic: item.isPublic ?? false,
+          createdAt: item.createdAt,
+          updatedAt: item.updatedAt,
+          totalDurationSeconds: item.totalDurationSeconds ?? 0,
+          trackCount: item.trackCount ?? 0,
+        }));
+
+        if (!canceled) {
+          setPlaylists(formatted);
+          setTotalPlaylistItems(raw.data.total ?? 0);
+          setTotalPlaylistPages(raw.data.totalPages ?? 1);
+        }
+      } catch (err: any) {
+        if (!canceled) {
+          setPlaylistsError(err?.message ?? "Failed to fetch playlists");
+          setPlaylists([]);
+        }
+      } finally {
+        if (!canceled) setLoadingPlaylists(false);
+      }
+    })();
+    return () => {
+      canceled = true;
+    };
+  }, [currentPlaylistPage, playlistPageSize]);
+
+  // Handle page change for music
+  const handleMusicPageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalMusicPages) {
+      setCurrentMusicPage(newPage);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
+
+  // Handle page change for playlists
+  const handlePlaylistPageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPlaylistPages) {
+      setCurrentPlaylistPage(newPage);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
+
+  // Handle play/pause for audio
+  const handlePlayPause = (item: Music) => {
+    const audio = document.getElementById(`audio-${item.id}`) as HTMLAudioElement;
+
+    if (!audio) return;
+
+    // Stop all other audios
+    document.querySelectorAll("audio").forEach((a) => {
+      if (a.id !== `audio-${item.id}`) {
+        a.pause();
+      }
+    });
+
+    if (audio.paused) {
+      audio.play();
+      setIsPlaying(true);
+      setCurrentPlayingId(item.id);
+    } else {
+      audio.pause();
+      setIsPlaying(false);
+      setCurrentPlayingId(null);
+    }
+  };
 
   // Actions
   const handleSaveMedia = () => {
-    const newId = songs.length ? Math.max(...songs.map((s) => s.id)) + 1 : 1;
-    const newSong: Song = {
+    const newId = String(Date.now());
+    const newMusic: Music = {
       id: newId,
       title: mediaName || "Untitled",
       artist: mediaPlaylist,
-      duration: "00:00",
+      durationSeconds: 0,
+      fileUrl: mediaLink || "",
       cover: mediaCover || "/images/music/default-cover.svg",
     };
-    setSongs((prev) => [newSong, ...prev]);
+    setMusic((prev) => [newMusic, ...prev]);
+    setTotalMusicItems((prev) => prev + 1);
     setIsAddOpen(false);
     resetForm();
 
-    // (Optional) POST lên API nếu bạn muốn lưu server-side:
-    // mockapi.post(SONGS_API_URL, { ...payload });
+    // (Optional) POST to API if you want
+    // axios.post(MUSIC_API_URL, { ...newMusic }, { headers: { Authorization: ... } });
   };
 
-  const handleSavePlaylist = () => {
-    const newId = playlists.length ? Math.max(...playlists.map((p) => p.id)) + 1 : 1;
-    const newItem: Playlist = {
-      id: newId,
-      name: playlistName || "Untitled",
-      artist: "Unknown",
-      year: new Date().getFullYear(),
-      cover: playlistCover || "/images/music/default-cover.svg",
-      songs: 0,
-    };
-    setPlaylists((prev) => [newItem, ...prev]);
-    setIsAddOpen(false);
-    setPlaylistName("");
-    setPlaylistCover(null);
+  const handleSavePlaylist = async () => {
+    try {
+      const payload = {
+        name: playlistName || "Untitled",
+        coverUrl: playlistCover,
+        isPublic: true,
+      };
 
-    // (Optional) POST playlist API
-    // mockapi.post(PLAYLISTS_API_URL, { ...payload });
+      const response = await axios.post(PLAYLISTS_API_URL, payload, {
+        headers: {
+          Authorization: `Bearer ${TEKNIX_USER_ACCESS_TOKEN}`,
+        },
+      });
+
+      if (response.data?.success) {
+        // Refresh playlists list
+        setCurrentPlaylistPage(1);
+        setIsAddOpen(false);
+        resetForm();
+      }
+    } catch (error) {
+      console.error("Error saving playlist:", error);
+    }
   };
 
-  const handleDeleteSelected = () => {
+  const handleDeleteSelected = async () => {
     if (!selectedIds.size) return;
-    setSongs((prev) => prev.filter((s) => !selectedIds.has(s.id)));
-    setSelectedIds(new Set());
-    // (Optional) gọi API delete theo IDs
+
+    try {
+      // Optional: Call API to delete selected music
+      // await axios.post(`${MUSIC_API_URL}/delete-bulk`, 
+      //   { ids: Array.from(selectedIds) },
+      //   { headers: { Authorization: `Bearer ${TEKNIX_USER_ACCESS_TOKEN}` } }
+      // );
+
+      setMusic((prev) => prev.filter((s) => !selectedIds.has(s.id)));
+      setSelectedIds(new Set());
+      setTotalMusicItems((prev) => Math.max(0, prev - selectedIds.size));
+
+      // Recalculate total pages
+      const newTotal = totalMusicItems - selectedIds.size;
+      const newTotalPages = Math.ceil(newTotal / musicPageSize);
+      setTotalMusicPages(newTotalPages);
+
+      // If current page is now empty, go to previous page
+      if (currentMusicPage > newTotalPages && newTotalPages > 0) {
+        setCurrentMusicPage(newTotalPages);
+      }
+    } catch (error) {
+      console.error("Error deleting music:", error);
+    }
   };
 
-  const handleDeleteSelectedPlaylists = () => {
+  const handleDeleteSelectedPlaylists = async () => {
     if (!selectedPlaylistIds.size) return;
-    setPlaylists((prev) => prev.filter((p) => !selectedPlaylistIds.has(p.id)));
-    setSelectedPlaylistIds(new Set());
-    // (Optional) gọi API delete theo IDs
+
+    try {
+      // Call API to delete selected playlists
+      for (const playlistId of Array.from(selectedPlaylistIds)) {
+        await axios.delete(`${PLAYLISTS_API_URL}/${playlistId}`, {
+          headers: {
+            Authorization: `Bearer ${TEKNIX_USER_ACCESS_TOKEN}`,
+          },
+        });
+      }
+
+      setPlaylists((prev) => prev.filter((p) => !selectedPlaylistIds.has(p.id)));
+      setSelectedPlaylistIds(new Set());
+      setTotalPlaylistItems((prev) => Math.max(0, prev - selectedPlaylistIds.size));
+
+      // Recalculate total pages
+      const newTotal = totalPlaylistItems - selectedPlaylistIds.size;
+      const newTotalPages = Math.ceil(newTotal / playlistPageSize);
+      setTotalPlaylistPages(newTotalPages);
+
+      // If current page is now empty, go to previous page
+      if (currentPlaylistPage > newTotalPages && newTotalPages > 0) {
+        setCurrentPlaylistPage(newTotalPages);
+      }
+    } catch (error) {
+      console.error("Error deleting playlists:", error);
+    }
   };
 
   // Derived
-  const filteredSongs = songs.filter((s) => {
+  const filteredMusic = music.filter((s) => {
     if (!searchTerm) return true;
     const q = searchTerm.toLowerCase();
-    return s.title.toLowerCase().includes(q) || s.artist.toLowerCase().includes(q);
+    return s.title.toLowerCase().includes(q) || (s.artist ?? "").toLowerCase().includes(q);
   });
 
   const filteredPlaylists = playlists.filter((p) => {
     if (!searchTerm) return true;
     const q = searchTerm.toLowerCase();
-    return p.name.toLowerCase().includes(q) || String(p.artist).toLowerCase().includes(q);
+    return p.name.toLowerCase().includes(q);
   });
+
+  // Convert seconds to mm:ss
+  const formatDuration = (seconds: number) => {
+    if (!seconds || isNaN(seconds)) return "00:00";
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s.toString().padStart(2, "0")}`;
+  };
 
   return (
     <div className="w-full min-h-screen px-6 py-6">
@@ -224,14 +379,20 @@ export default function BasicTableOne() {
         <div className="flex items-center justify-start">
           <div className="flex items-center gap-4">
             <button
-              onClick={() => setActiveTab("media")}
+              onClick={() => {
+                setActiveTab("media");
+                setCurrentMusicPage(1);
+              }}
               className={`pb-3 font-semibold border-b-2 transition-colors ${activeTab === "media" ? "text-orange-500 border-orange-400" : "text-gray-400 border-transparent"
                 }`}
             >
               Media
             </button>
             <button
-              onClick={() => setActiveTab("playlist")}
+              onClick={() => {
+                setActiveTab("playlist");
+                setCurrentPlaylistPage(1);
+              }}
               className={`pb-3 font-semibold border-b-2 transition-colors ${activeTab === "playlist" ? "text-orange-500 border-orange-400" : "text-gray-400 border-transparent"
                 }`}
             >
@@ -243,7 +404,7 @@ export default function BasicTableOne() {
         {/* Toolbar */}
         <div className="mt-4 flex items-center justify-between">
           <div className="text-gray-800 font-semibold">
-            {activeTab === "media" ? `${songs.length} songs` : `${playlists.length} Play list`}
+            {activeTab === "media" ? `${totalMusicItems} music` : `${totalPlaylistItems} Play list`}
           </div>
 
           <div className="flex items-center gap-3">
@@ -261,7 +422,11 @@ export default function BasicTableOne() {
               </svg>
               <input
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentMusicPage(1);
+                  setCurrentPlaylistPage(1);
+                }}
                 type="text"
                 placeholder="Search..."
                 className="h-11 w-[420px] rounded-lg border border-gray-200 bg-white py-2.5 pl-11 pr-4 text-sm text-gray-600 shadow-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
@@ -286,13 +451,13 @@ export default function BasicTableOne() {
                 else handleDeleteSelectedPlaylists();
               }}
               disabled={activeTab === "media" ? selectedIds.size === 0 : selectedPlaylistIds.size === 0}
-              className={`inline-flex items-center gap-2 rounded-lg border px-4 py-2.5 text-theme-sm font-medium ${(activeTab === "media" ? selectedIds.size === 0 : selectedPlaylistIds.size === 0)
+              className={`inline-flex items-center gap-2 rounded-lg border px-4 py-2.5 text-theme-sm font-medium ${activeTab === "media" ? selectedIds.size === 0 : selectedPlaylistIds.size === 0
                 ? "border-gray-200 text-gray-300 bg-gray-50 cursor-not-allowed"
                 : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:text-gray-800"
                 }`}
             >
               <TrashBinIcon
-                className={`w-4 h-4 ${(activeTab === "media" ? selectedIds.size === 0 : selectedPlaylistIds.size === 0) ? "text-gray-300" : "text-gray-500"
+                className={`w-4 h-4 ${activeTab === "media" ? selectedIds.size === 0 : selectedPlaylistIds.size === 0 ? "text-gray-300" : "text-gray-500"
                   }`}
               />
               Delete
@@ -309,75 +474,125 @@ export default function BasicTableOne() {
         </div>
       </div>
 
-      {/* ========= TAB: MEDIA ========= */}
+      {/* ========= TAB: MEDIA (MUSIC) ========= */}
       {activeTab === "media" && (
         <>
           <div className="rounded-xl border border-gray-200 bg-white">
             {/* Loading / error state */}
-            {loadingSongs && (
-              <div className="px-6 py-8 text-sm text-gray-500">Loading songs…</div>
-            )}
-            {!!songsError && !loadingSongs && (
-              <div className="px-6 py-8 text-sm text-red-600">Failed to load songs: {songsError}</div>
-            )}
+            {loadingMusic && <div className="px-6 py-8 text-sm text-gray-500">Loading music…</div>}
+            {!!musicError && !loadingMusic && <div className="px-6 py-8 text-sm text-red-600">Failed to load music: {musicError}</div>}
 
-            {!loadingSongs && !songsError && (
+            {!loadingMusic && !musicError && (
               <>
                 <div className="divide-y divide-gray-100">
-                  {filteredSongs.map((song) => (
-                    <div key={song.id} className="flex items-center justify-between px-6 py-4">
-                      <div className="flex items-center gap-4">
-                        <Checkbox
-                          checked={selectedIds.has(song.id)}
-                          onChange={(checked) => {
-                            const next = new Set(selectedIds);
-                            if (checked) next.add(song.id);
-                            else next.delete(song.id);
-                            setSelectedIds(next);
-                          }}
-                          className="w-4 h-4 text-indigo-600 rounded"
-                        />
+                  {filteredMusic.length > 0 ? (
+                    filteredMusic.map((item) => (
+                      <div key={item.id} className="flex items-center justify-between px-6 py-4">
+                        <div className="flex items-center gap-4">
+                          <Checkbox
+                            checked={selectedIds.has(item.id)}
+                            onChange={(checked) => {
+                              const next = new Set(selectedIds);
+                              if (checked) next.add(item.id);
+                              else next.delete(item.id);
+                              setSelectedIds(next);
+                            }}
+                            className="w-4 h-4 text-indigo-600 rounded"
+                          />
 
-                        <div className="w-14 h-14 rounded-lg overflow-hidden">
-                          <Image src={song.cover} width={56} height={56} alt={song.title} className="object-cover" />
-                        </div>
+                          <div className="w-14 h-14 rounded-lg overflow-hidden">
+                            <Image
+                              src={item.cover ?? "/images/music/default-cover.svg"}
+                              width={56}
+                              height={56}
+                              alt={item.title}
+                              className="object-cover"
+                            />
+                          </div>
 
-                        <div>
-                          <div className="font-semibold text-gray-800 text-sm">{song.title}</div>
-                          <div className="text-gray-500 text-xs mt-1">
-                            {song.artist} &nbsp;|&nbsp; {song.duration} mins
+                          <div>
+                            <div className="font-semibold text-gray-800 text-sm">{item.title}</div>
+                            <div className="text-gray-500 text-xs mt-1">
+                              {item.artist ?? "Unknown Artist"} &nbsp;|&nbsp; {formatDuration(item.durationSeconds)} mins
+                            </div>
                           </div>
                         </div>
-                      </div>
+                        <div className="flex items-center gap-4">
+                          {/* Hidden audio element */}
+                          <audio
+                            id={`audio-${item.id}`}
+                            src={item.fileUrl}
+                            onEnded={() => {
+                              setIsPlaying(false);
+                              setCurrentPlayingId(null);
+                            }}
+                          />
 
-                      <div className="flex items-center gap-4">
-                        <button
-                          aria-label="play"
-                          className="w-9 h-9 flex items-center justify-center rounded-full bg-orange-500 text-white shadow"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
-                            <path d="M6.5 5.5v9l7-4.5-7-4.5z" />
-                          </svg>
-                        </button>
+                          {/* Play/Pause Button */}
+                          <button
+                            onClick={() => handlePlayPause(item)}
+                            aria-label="play"
+                            className="w-9 h-9 flex items-center justify-center rounded-full bg-orange-500 text-white shadow hover:bg-orange-600 transition-colors"
+                          >
+                            {isPlaying && currentPlayingId === item.id ? (
+                              // Pause icon
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                className="w-4 h-4"
+                                viewBox="0 0 20 20"
+                                fill="currentColor"
+                              >
+                                <path d="M6 4h3v12H6zM11 4h3v12h-3z" />
+                              </svg>
+                            ) : (
+                              // Play icon
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                className="w-4 h-4"
+                                viewBox="0 0 20 20"
+                                fill="currentColor"
+                              >
+                                <path d="M6.5 5.5v9l7-4.5-7-4.5z" />
+                              </svg>
+                            )}
+                          </button>
 
-                        <button aria-label="more" className="p-2 text-gray-400 hover:text-gray-600">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
-                            <path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zm6 0a2 2 0 11-4 0 2 2 0 014 0zm6 0a2 2 0 11-4 0 2 2 0 014 0z" />
-                          </svg>
-                        </button>
+                          {/* More button */}
+                          <button
+                            aria-label="more"
+                            className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="w-4 h-4"
+                              viewBox="0 0 20 20"
+                              fill="currentColor"
+                            >
+                              <path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zm6 0a2 2 0 11-4 0 2 2 0 014 0zm6 0a2 2 0 11-4 0 2 2 0 014 0z" />
+                            </svg>
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                  {filteredSongs.length === 0 && (
-                    <div className="px-6 py-8 text-sm text-gray-500">No songs found.</div>
+                    ))
+                  ) : (
+                    <div className="px-6 py-8 text-sm text-gray-500">No music found.</div>
                   )}
                 </div>
 
-                <div className="mt-4 flex items-center justify-between px-6 py-4">
-                  <div className="flex-1 flex justify-center">
-                    <PaginationWithTextWitIcon totalPages={10} initialPage={1} />
+                {music.length > 0 && (
+                  <div className="mt-4 flex items-center justify-between px-6 py-4 border-t border-gray-100">
+                    <div className="text-sm text-gray-600">
+                      Showing {(currentMusicPage - 1) * musicPageSize + 1} to {Math.min(currentMusicPage * musicPageSize, totalMusicItems)} of {totalMusicItems} music
+                    </div>
+                    <div className="flex-1 flex justify-center">
+                      <PaginationWithTextWitIcon
+                        totalPages={totalMusicPages}
+                        initialPage={currentMusicPage}
+                        onPageChange={handleMusicPageChange}
+                      />
+                    </div>
                   </div>
-                </div>
+                )}
               </>
             )}
           </div>
@@ -386,47 +601,85 @@ export default function BasicTableOne() {
 
       {/* ========= TAB: PLAYLIST ========= */}
       {activeTab === "playlist" && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-4">
-          {filteredPlaylists.map((item) => (
-            <div key={item.id} className="relative">
-              <Link href={`/media/playlist/${item.id}`}>
-                <div className="p-4">
-                  <div className="w-36 h-36 rounded-lg overflow-hidden">
-                    <Image src={item.cover} width={144} height={144} alt={item.name} className="w-full h-full object-cover" />
-                  </div>
+        <>
+          {loadingPlaylists && <div className="px-6 py-8 text-sm text-gray-500">Loading playlists…</div>}
+          {!!playlistsError && !loadingPlaylists && <div className="px-6 py-8 text-sm text-red-600">Failed to load playlists: {playlistsError}</div>}
 
-                  <div className="mt-4 text-left">
-                    <h4 className="font-semibold text-gray-800 text-sm mb-1">{item.name}</h4>
-                    <p className="text-xs text-gray-500">
-                      {item.artist} &nbsp;|&nbsp; {item.year}
-                    </p>
-                    <p className="text-xs text-gray-400 mt-2">{item.songs} songs</p>
-                  </div>
-                </div>
+          {!loadingPlaylists && !playlistsError && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-4">
+              {filteredPlaylists.length > 0 ? (
+                <>
+                  {filteredPlaylists.map((item) => (
+                    <div key={item.id} className="relative">
+                      <Link href={`/media/playlist/${item.id}`}>
+                        <div className="p-4">
+                          <div className="w-36 h-36 rounded-lg overflow-hidden bg-gray-100">
+                            {item.coverUrl ? (
+                              <img
+                                src={item.coverUrl}
+                                width={144}
+                                height={144}
+                                alt={item.name}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center">
+                                <svg
+                                  className="w-12 h-12 text-gray-300"
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  viewBox="0 0 24 24"
+                                  fill="currentColor"
+                                >
+                                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z" />
+                                </svg>
+                              </div>
+                            )}
+                          </div>
 
-                <div className="border-t border-gray-100" />
-              </Link>
+                          <div className="mt-4 text-left">
+                            <h4 className="font-semibold text-gray-800 text-sm mb-1">{item.name}</h4>
+                            <p className="text-xs text-gray-500">
+                              {new Date(item.createdAt).getFullYear()}
+                            </p>
+                            <p className="text-xs text-gray-400 mt-2">{item.trackCount} songs</p>
+                          </div>
+                        </div>
 
-              {/* chọn nhiều để xóa */}
-              <div className="absolute top-3 right-3 z-10">
-                <Checkbox
-                  checked={selectedPlaylistIds.has(item.id)}
-                  onChange={(checked) => {
-                    const next = new Set(selectedPlaylistIds);
-                    if (checked) next.add(item.id);
-                    else next.delete(item.id);
-                    setSelectedPlaylistIds(next);
-                  }}
-                  className="w-4 h-4 text-indigo-600 rounded bg-white"
-                />
-              </div>
+                        <div className="border-t border-gray-100" />
+                      </Link>
+
+                      {/* Checkbox for selection */}
+                      <div className="absolute top-3 right-3 z-10">
+                        <Checkbox
+                          checked={selectedPlaylistIds.has(item.id)}
+                          onChange={(checked) => {
+                            const next = new Set(selectedPlaylistIds);
+                            if (checked) next.add(item.id);
+                            else next.delete(item.id);
+                            setSelectedPlaylistIds(next);
+                          }}
+                          className="w-4 h-4 text-indigo-600 rounded bg-white"
+                        />
+                      </div>
+                    </div>
+                  ))}
+
+                  {totalPlaylistPages > 1 && (
+                    <div className="col-span-1 sm:col-span-2 lg:col-span-3 mt-6 flex justify-center">
+                      <PaginationWithTextWitIcon
+                        totalPages={totalPlaylistPages}
+                        initialPage={currentPlaylistPage}
+                        onPageChange={handlePlaylistPageChange}
+                      />
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="col-span-1 sm:col-span-2 lg:col-span-3 text-center py-8 text-gray-500">No playlists found.</div>
+              )}
             </div>
-          ))}
-
-          <div className="col-span-1 sm:col-span-2 lg:col-span-3 mt-6 flex justify-center">
-            <PaginationWithTextWitIcon totalPages={10} initialPage={1} />
-          </div>
-        </div>
+          )}
+        </>
       )}
 
       {/* ========= MODAL (Add new) ========= */}
@@ -450,10 +703,10 @@ export default function BasicTableOne() {
               </button>
 
               <h3 className="text-xl font-semibold text-gray-800 mb-1">
-                {activeTab === "playlist" ? "Add new play list" : "Add new media"}
+                {activeTab === "playlist" ? "Add new play list" : "Add new music"}
               </h3>
               <p className="text-sm text-gray-500 mb-6">
-                {activeTab === "playlist" ? "Update your play list details." : "Update your media details."}
+                {activeTab === "playlist" ? "Create your play list details." : "Add your music details."}
               </p>
 
               <div className="space-y-5">
@@ -465,11 +718,12 @@ export default function BasicTableOne() {
                         value={playlistName}
                         onChange={(e) => setPlaylistName(e.target.value)}
                         className="w-full border border-gray-200 rounded-md px-4 py-3 text-sm"
+                        placeholder="Enter playlist name"
                       />
                     </label>
 
                     <div>
-                      <div className="mb-2 text-sm text-gray-600">Avatar</div>
+                      <div className="mb-2 text-sm text-gray-600">Cover Image</div>
                       <div className="rounded-lg border border-dashed border-gray-200 p-4">
                         <div className="max-h-[300px] p-3">
                           <DropzoneComponent
@@ -487,20 +741,22 @@ export default function BasicTableOne() {
                 ) : (
                   <>
                     <label className="flex flex-col">
-                      <span className="text-sm text-gray-600 mb-2">Media Name</span>
+                      <span className="text-sm text-gray-600 mb-2">Music Name</span>
                       <input
                         value={mediaName}
                         onChange={(e) => setMediaName(e.target.value)}
                         className="w-full border border-gray-200 rounded-md px-4 py-3 text-sm"
+                        placeholder="Enter music name"
                       />
                     </label>
 
                     <label className="flex flex-col">
-                      <span className="text-sm text-gray-600 mb-2">Link</span>
+                      <span className="text-sm text-gray-600 mb-2">File URL</span>
                       <input
                         value={mediaLink}
                         onChange={(e) => setMediaLink(e.target.value)}
                         className="w-full border border-gray-200 rounded-md px-4 py-3 text-sm"
+                        placeholder="Enter file URL"
                       />
                     </label>
 
@@ -517,7 +773,7 @@ export default function BasicTableOne() {
                     </label>
 
                     <div>
-                      <div className="mb-2 text-sm text-gray-600">Dropzone</div>
+                      <div className="mb-2 text-sm text-gray-600">Cover Image</div>
                       <div className="rounded-lg border border-dashed border-gray-200 p-4">
                         <div className="max-h-[300px] p-3">
                           <DropzoneComponent
@@ -542,17 +798,17 @@ export default function BasicTableOne() {
                   resetForm();
                   setIsAddOpen(false);
                 }}
-                className="px-4 py-2 rounded-md border border-gray-200 bg-white"
+                className="px-4 py-2 rounded-md border border-gray-200 bg-white hover:bg-gray-50 transition-colors"
               >
                 Close
               </button>
 
               {activeTab === "playlist" ? (
-                <button onClick={handleSavePlaylist} className="px-4 py-2 bg-indigo-600 text-white rounded-md">
+                <button onClick={handleSavePlaylist} className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors">
                   Add new
                 </button>
               ) : (
-                <button onClick={handleSaveMedia} className="px-4 py-2 bg-indigo-600 text-white rounded-md">
+                <button onClick={handleSaveMedia} className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors">
                   Save Changes
                 </button>
               )}
