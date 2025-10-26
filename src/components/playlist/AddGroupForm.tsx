@@ -114,7 +114,8 @@ export default function AddGroupForm({
       const payload = {
         lat: baseDevice.lat ?? 10.233,
         lng: baseDevice.lng ?? 106.376,
-        name: groupName, //Đặt tên mới theo groupName
+        // Use the original device name for the new device so the table shows device names
+        name: baseDevice.name,
         image: baseDevice.image,
         volume: baseDevice.volume,
         address: baseDevice.address,

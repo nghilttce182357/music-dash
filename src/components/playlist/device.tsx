@@ -155,7 +155,15 @@ export default function BasicTableOne() {
         <TableCell className="px-4 py-4 border border-gray-100 dark:border-white/[0.05]">
           <div className="flex items-center justify-center">
             <div className="w-10 h-10">
-              <img src={device.image} alt={device.name} className="object-contain w-full h-full" />
+              {device.image && device.image.toString().trim() ? (
+                <img
+                  src={device.image}
+                  alt={device.name}
+                  className="object-contain w-full h-full"
+                />
+              ) : (
+                <div className="w-full h-full bg-gray-100 rounded" aria-hidden />
+              )}
             </div>
           </div>
         </TableCell>
