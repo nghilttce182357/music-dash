@@ -1,3 +1,5 @@
+
+
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -26,9 +28,10 @@ type Props = {
   device: Device | null;
   onClose: () => void;
   onSave: (d: Device) => void;
+  groups: string[];
 };
 
-export default function EditDeviceForm({ open, device, onClose, onSave }: Props) {
+export default function EditDeviceForm({ open, device, onClose, onSave, groups }: Props) {
   const [form, setForm] = useState<Device | null>(null);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -40,7 +43,7 @@ export default function EditDeviceForm({ open, device, onClose, onSave }: Props)
         setLoading(true);
         try {
           const res = await mockapi.get(
-            `${MOCK_API_URL}/teknix1/musicdashboard/api/v1/alldevices/${device.id}`
+            `${MOCK_API_URL}/teknix1/musicdashboard/api/v1/devices/${device.id}`
           );
           const data = res.data?.data || res.data;
           setForm(data || device);
@@ -64,14 +67,14 @@ export default function EditDeviceForm({ open, device, onClose, onSave }: Props)
     setForm((prev) => (prev ? { ...prev, [key]: value } : prev));
   };
 
-  // ✅ Lưu thay đổi (PUT đúng thứ tự schema)
+  //  Lưu thay đổi (PUT đúng thứ tự schema)
   const handleSave = async () => {
     if (!form) return;
     setSaving(true);
 
     try {
+      // Không gửi id và user_id - backend tự xác định
       const payload = {
-        id: Number(form.id),
         lat: Number(form.lat ?? 10.2712875),
         lng: Number(form.lng ?? 106.434478),
         name: form.name,
@@ -81,11 +84,13 @@ export default function EditDeviceForm({ open, device, onClose, onSave }: Props)
         enabled: Boolean(form.enabled),
         category: form.category ?? "Laptop",
         variants: form.variants ?? 2,
-        deviceGroup: form.group,
-        user_id: form.user_id ?? 5,
+        deviceGroup: form.group, // Backend chỉ chấp nhận deviceGroup (camelCase)
       };
 
-      console.log("PUT PAYLOAD:", payload);
+      console.log("🔹 PUT PAYLOAD:", payload);
+      console.log("🔹 Form group value:", form.group);
+      console.log("🔹 Device ID:", form.id);
+      console.log("🔹 Full URL:", `${MOCK_API_URL}/teknix1/musicdashboard/api/v1/devices/${form.id}`);
 
       const res = await mockapi.put(
         `${MOCK_API_URL}/teknix1/musicdashboard/api/v1/devices/${form.id}`,
@@ -96,12 +101,49 @@ export default function EditDeviceForm({ open, device, onClose, onSave }: Props)
         }
       );
 
-      const updatedDevice = res.data?.data || payload;
+      console.log("✅ Update success - FULL RESPONSE:", res.data);
+      console.log("✅ Response data field:", res.data?.data);
+      console.log("✅ Response deviceGroup:", res.data?.data?.deviceGroup);
+      console.log("✅ Response device_group:", res.data?.data?.device_group);
+      
+      // Map response data to Device format
+      const responseData = res.data?.data;
+      const updatedDevice = {
+        id: form.id,
+        name: form.name,
+        address: form.address,
+        group: form.group, // Sử dụng giá trị từ form (đã được user chọn)
+        volume: form.volume,
+        enabled: form.enabled,
+        image: form.image,
+      };
+      
+      console.log("🔄 Sending updated device to parent:", updatedDevice);
       onSave(updatedDevice);
       onClose();
     } catch (err: any) {
-      console.error("Failed saving device:", err.response?.data || err.message);
-      alert(`Save failed: ${err?.response?.data?.message || err?.message}`);
+      // Log toàn bộ error object để debug
+      console.error("❌ Full error object:", err);
+      console.error("❌ Error type:", typeof err);
+      console.error("❌ Error keys:", Object.keys(err || {}));
+      console.error("❌ Error message:", err?.message);
+      console.error("❌ Response:", err?.response);
+      console.error("❌ Response data:", err?.response?.data);
+      console.error("❌ Response status:", err?.response?.status);
+      
+      // Hiển thị lỗi rõ ràng hơn
+      let errorMsg = "Unknown error";
+      if (err?.response?.data?.message) {
+        errorMsg = err.response.data.message;
+      } else if (err?.response?.status) {
+        errorMsg = `Server error ${err.response.status}: ${err.response.statusText || 'Unknown'}`;
+      } else if (err?.message) {
+        errorMsg = err.message;
+      } else if (err) {
+        errorMsg = JSON.stringify(err);
+      }
+      
+      alert(`❌ Save failed: ${errorMsg}\n\nVui lòng kiểm tra console để xem chi tiết lỗi.`);
     } finally {
       setSaving(false);
     }
@@ -195,10 +237,11 @@ export default function EditDeviceForm({ open, device, onClose, onSave }: Props)
                   value={form.group}
                   onChange={(e) => handleChange("group", e.target.value)}
                 >
-                  <option value="Newsletter">Newsletter</option>
-                  <option value="Current Affairs">Current Affairs</option>
-                  <option value="Weather Forecast">Weather Forecast</option>
-                  <option value="Play Music">Play Music</option>
+                  {groups.map((group) => (
+                    <option key={group} value={group}>
+                      {group}
+                    </option>
+                  ))}
                 </select>
               </div>
 

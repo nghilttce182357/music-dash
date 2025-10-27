@@ -1,3 +1,5 @@
+
+
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -123,7 +125,7 @@ export default function AddGroupForm({
         category: baseDevice.category ?? "Laptop",
         variants: baseDevice.variants ?? 1,
         deviceGroup: groupName, //Nhóm mới
-        // ⚠️ KHÔNG gửi user_id vì backend không cho phép
+        // KHÔNG gửi user_id vì backend không cho phép
       };
 
       console.log("🔹 Sending payload:", payload);
@@ -134,15 +136,15 @@ export default function AddGroupForm({
         { headers: { "Content-Type": "application/json" } }
       );
 
-      console.log("✅ Device created:", res.data);
+      console.log(" Device created:", res.data);
     }
 
-    alert(`✅ Đã tạo thành công ${ids.length} thiết bị mới trong nhóm "${groupName}"`);
+    alert(` Đã tạo thành công ${ids.length} thiết bị mới trong nhóm "${groupName}"`);
     onSave(groupName, ids);
     onClose();
   } catch (err: any) {
-    console.error("❌ Create device failed:", err.response?.data || err.message);
-    alert(`❌ Lỗi khi tạo thiết bị: ${err.response?.data?.message || err.message}`);
+    console.error(" Create device failed:", err.response?.data || err.message);
+    alert(` Lỗi khi tạo thiết bị: ${err.response?.data?.message || err.message}`);
   } finally {
     setSaving(false);
   }

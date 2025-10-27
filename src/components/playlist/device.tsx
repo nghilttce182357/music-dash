@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -21,12 +22,8 @@ type Device = {
   enabled: boolean;
 };
 
-
-
-
 export default function BasicTableOne() {
   const [isChecked, setIsChecked] = useState(false);
-  // const rowsPerPage = 5;
   const [rowsPerPage, setRowsPerPage] = useState(5); // Number of rows per page
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -48,6 +45,8 @@ export default function BasicTableOne() {
     console.log('Save group', groupName, selectedDeviceIds);
     // After creating group devices, re-fetch devices so the table shows newly created devices
     try {
+      // Add the new group to the groups list so it appears in EditDeviceForm select
+      setGroups((prev) => (prev.includes(groupName) ? prev : [...prev, groupName]));
       // ensure we show the group tab where new devices belong
       setActiveTab('group');
       // reset pagination to first page to make new items visible
@@ -207,6 +206,33 @@ export default function BasicTableOne() {
   const closeEdit = () => {
     setSelectedDevice(null);
     setIsEditOpen(false);
+  };
+
+  // Load groups from localStorage or use defaults
+  const [groups, setGroups] = useState<string[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('deviceGroups');
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch (e) {
+          console.warn('Failed to parse saved groups:', e);
+        }
+      }
+    }
+    return ["Newsletter", "Current Affairs", "Weather Forecast", "Play Music"];
+  });
+
+  // Save groups to localStorage whenever it changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('deviceGroups', JSON.stringify(groups));
+    }
+  }, [groups]);
+
+   const handleAddGroup = (groupName: string, ids: number[]) => {
+    setGroups((prev) => (prev.includes(groupName) ? prev : [...prev, groupName]));
+   
   };
 
   const handleSaveDevice = (updated: Device) => {
@@ -720,11 +746,12 @@ export default function BasicTableOne() {
         device={selectedDevice}
         onClose={closeEdit}
         onSave={handleSaveDevice}
+        groups={groups}
       />
       <AddGroupForm
         open={isAddGroupOpen}
         devices={devicesData}
-        initialGroupName={"Newsletter"}
+        initialGroupName=""
         onClose={closeAddGroup}
         onSave={handleSaveGroup}
       />
