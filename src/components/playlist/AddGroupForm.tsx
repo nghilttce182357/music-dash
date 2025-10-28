@@ -131,7 +131,7 @@ export default function AddGroupForm({
       console.log("🔹 Sending payload:", payload);
 
       const res = await mockapi.post(
-        `${MOCK_API_URL}/teknix1/musicdashboard/api/v1/devices`,
+        `${MOCK_API_URL}/teknix/musicdashboard/api/v1/devices`,
         payload,
         { headers: { "Content-Type": "application/json" } }
       );

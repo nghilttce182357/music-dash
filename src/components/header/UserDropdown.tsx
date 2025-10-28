@@ -34,7 +34,7 @@ export default function UserDropdown() {
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const res = await mockapi.get(`${MOCK_API_URL}/teknix1/musicdashboard/api/v1/user/profile`, {
+        const res = await mockapi.get(`${MOCK_API_URL}/teknix/musicdashboard/api/v1/user/profile`, {
           withCredentials: true,
         });
         console.log("User API response:", res.data.data);

@@ -43,7 +43,7 @@ export default function EditDeviceForm({ open, device, onClose, onSave, groups }
         setLoading(true);
         try {
           const res = await mockapi.get(
-            `${MOCK_API_URL}/teknix1/musicdashboard/api/v1/devices/${device.id}`
+            `${MOCK_API_URL}/teknix/musicdashboard/api/v1/devices/${device.id}`
           );
           const data = res.data?.data || res.data;
           setForm(data || device);
@@ -90,10 +90,10 @@ export default function EditDeviceForm({ open, device, onClose, onSave, groups }
       console.log("🔹 PUT PAYLOAD:", payload);
       console.log("🔹 Form group value:", form.group);
       console.log("🔹 Device ID:", form.id);
-      console.log("🔹 Full URL:", `${MOCK_API_URL}/teknix1/musicdashboard/api/v1/devices/${form.id}`);
+      console.log("🔹 Full URL:", `${MOCK_API_URL}/teknix/musicdashboard/api/v1/devices/${form.id}`);
 
       const res = await mockapi.put(
-        `${MOCK_API_URL}/teknix1/musicdashboard/api/v1/devices/${form.id}`,
+        `${MOCK_API_URL}/teknix/musicdashboard/api/v1/devices/${form.id}`,
         payload,
         {
           headers: { "Content-Type": "application/json" },
